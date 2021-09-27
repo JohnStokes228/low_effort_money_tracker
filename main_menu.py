@@ -5,19 +5,24 @@ suggestions including:
       - historic portfolio viewing?
       - create portfolios and test them against time series?
       - a print 'pizza time' method?
+      - asset allocation for the portfolios?
 
-TODO: - class design
-      - API for getting the values
-      - this might literally be it just the two steps
+TODO: - replace the folder 'portfolios' with an SQL relational database, with the following strucutre:
+          - table per asset class for holdings across all portfolios, including location held, quantity, purchase date,
+          and portfolio ID
+          - table for prices time series for all asset types, including price, date and ticker
+          - 
+      - replace the generation / deletion of CSV's with the generation / deletion of tables
+      - add method for viewing / editing a portfolio (call portfolio manager class)
 """
 import os
 import sys
 import pandas as pd
-from typing import List
+from typing import List, NoReturn
 from pathlib import Path
 
 
-def unpack_list_to_hyphened_string(input_list: List[str]):
+def unpack_list_to_hyphened_string(input_list: List[str]) -> str:
     """Unpack list into a string with a new line and tab, followed by a hyphen then a value in the list, for all values
     in the list.
 
@@ -31,7 +36,7 @@ def unpack_list_to_hyphened_string(input_list: List[str]):
 
     Parameters
     ----------
-    input_list: List of strings to be unpacked (might also work with lists of other object types?)
+    input_list : List of strings to be unpacked (might also work with lists of other object types?)
 
     Returns
     -------
@@ -44,13 +49,14 @@ def unpack_list_to_hyphened_string(input_list: List[str]):
 class MainMenu:
     """Class governing the main menu and access to the individual portfolio managers.
 
-    Includes methods for creating, deleting and viewing / editing each portfolio. The latter of these methods will
-    instantiate a portfolio manager class for the individual portfolio
+    In the end, this will probs be the main menu, hence the name. It is entirely possible it becomes part of a fatter
+    system though I'm not 100% just yet as have to design the database first realistically?. Also might need to
+    refactor this code if i decide to make this an app rather than a weirdo python script...
     """
-    def __init__(self):
+    def __init__(self) -> None:
         self.portfolios = [Path(file).stem for file in os.listdir('portfolios')]
 
-    def create_portfolio(self):
+    def create_portfolio(self) -> NoReturn:
         """Create a new empty portfolio in the portfolios folder.
         """
         portfolio_name = input('What do you want to call your new portfolio?\n')
@@ -67,27 +73,31 @@ class MainMenu:
         self.portfolios.append(portfolio_name)
         portfolio.to_csv(f'portfolios/{portfolio_name}.csv', index=False)
 
-    def select_portfolio(self):
+    def select_portfolio(self) -> NoReturn:
         pass
 
-    def delete_portfolio(self):
+    def delete_portfolio(self) -> None:
         """Delete the specified portfolio from the portfolios folder.
 
-        Parameters
-        ----------
+        Returns
+        -------
+        None
+            If attempting to delete a portfolio which doesnt exist, function will return NoneType. Else, nothing is
+            returned. Wasn't sure how to correctly typehint an something which optionally returns NoneType or literally
+            nothing...?
         """
         print('which portfolio would you like to delete?'
-              f'{unpack_list_to_hyphened_string(self.portfolios)}\n')
+              f'{unpack_list_to_hyphened_string(self.portfolios)}\n')  # list all portfolios currently available
         chosen = input()
 
         if chosen not in self.portfolios:
             print('invalid selection!\n')
-            return
+            return  # leave function if user attempts to remove a non-existant portfolio
 
         self.portfolios.remove(chosen)
         os.remove(f'portfolios/{chosen}.csv')
 
-    def run_menu(self):
+    def run_menu(self) -> NoReturn:
         """Run the main menu method
         """
         if not self.portfolios:
@@ -99,7 +109,7 @@ class MainMenu:
                        "\n\t3 - delete existing portfolio"
                        "\n\t4 - exit system\n")
 
-        if choose == '1':
+        if choose == '1':  # this if block is quite clunky, is there a more scalable way - prehaps enumerate related?
             self.create_portfolio()
         elif choose == '2':
             self.select_portfolio()
