@@ -114,6 +114,7 @@ class MainMenu:
         self.database_manager.execute_commit(query=f'DELETE FROM portfolios WHERE id = {chosen}')
         print(f'Successfully deleted portfolio {chosen}')
 
+
 if __name__ == '__main__':
     menu = MainMenu()
 
