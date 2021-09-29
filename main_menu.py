@@ -7,32 +7,25 @@ suggestions including:
       - a print 'pizza time' method?
       - asset allocation for the portfolios?
 
-TODO: - replace the folder 'portfolios' with an SQL relational database, with the following strucutre:
-          - table per asset class for holdings across all portfolios, including location held, quantity, purchase date,
-          and portfolio ID
-          - table for prices time series for all asset types, including price, date and ticker
-          - 
-      - replace the generation / deletion of CSV's with the generation / deletion of tables
-      - add method for viewing / editing a portfolio (call portfolio manager class)
+TODO: - add the delete protfolio method
+      - add the view / edit portfolio method
 """
-import os
 import sys
-import pandas as pd
-from typing import List, NoReturn
-from pathlib import Path
+from typing import List, Optional, Tuple
+from mysql_database import MYSQLDataBase
 
 
-def unpack_list_to_hyphened_string(input_list: List[str]) -> str:
+def unpack_list_to_hyphened_string(input_list: List[Tuple[str]]) -> str:
     """Unpack list into a string with a new line and tab, followed by a hyphen then a value in the list, for all values
     in the list.
 
     Example
     -------
-    >>> unpack_list_to_hyphened_string(['test', 'test2', 'test3', 'final test'])
-        - test1
-        - test2
-        - test3
-        - final test
+    >>> unpack_list_to_hyphened_string([(1, 'test'), (2, 'test2'), (3, 'test3'), (4, 'final test')])
+        1 - test1
+        2 - test2
+        3 - test3
+        4 - final test
 
     Parameters
     ----------
@@ -43,64 +36,34 @@ def unpack_list_to_hyphened_string(input_list: List[str]) -> str:
     str
         The elements of input_list unpacked and formatted as described.
     """
-    return '\n\t - ' + '\n\t - '.join(input_list)
+    output_list = [f'\n\t{input[0]} - {input[1]}' for input in input_list]
+
+    return ''.join(output_list)
 
 
 class MainMenu:
-    """Class governing the main menu and access to the individual portfolio managers.
-
-    In the end, this will probs be the main menu, hence the name. It is entirely possible it becomes part of a fatter
-    system though I'm not 100% just yet as have to design the database first realistically?. Also might need to
-    refactor this code if i decide to make this an app rather than a weirdo python script...
+    """Class governing the User interactions and inputs with the database.
     """
-    def __init__(self) -> None:
-        self.portfolios = [Path(file).stem for file in os.listdir('portfolios')]
+    def __init__(self):
+        self.database_manager = MYSQLDataBase()
+        self._portfolio = None
 
-    def create_portfolio(self) -> NoReturn:
-        """Create a new empty portfolio in the portfolios folder.
+    @property
+    def portfolio(self) -> Optional[str]:
+        """Getter method for sometimes available attribute 'portfolio'.
         """
-        portfolio_name = input('What do you want to call your new portfolio?\n')
-        portfolio = pd.DataFrame(columns=[
-            'asset_class',
-            'asset_name',
-            'asset_ticker',
-            'price_per_unit',
-            'quantity',
-            'value',
-            'start_date'
-        ])
+        if not self._portfolio:
+            raise AttributeError('No portfolio currently active!')
+        return self._portfolio
 
-        self.portfolios.append(portfolio_name)
-        portfolio.to_csv(f'portfolios/{portfolio_name}.csv', index=False)
-
-    def select_portfolio(self) -> NoReturn:
-        pass
-
-    def delete_portfolio(self) -> None:
-        """Delete the specified portfolio from the portfolios folder.
-
-        Returns
-        -------
-        None
-            If attempting to delete a portfolio which doesnt exist, function will return NoneType. Else, nothing is
-            returned. Wasn't sure how to correctly typehint an something which optionally returns NoneType or literally
-            nothing...?
+    def run_menu(self) -> None:
+        """Run the main menu method.
         """
-        print('which portfolio would you like to delete?'
-              f'{unpack_list_to_hyphened_string(self.portfolios)}\n')  # list all portfolios currently available
-        chosen = input()
+        self.database_manager.get_connect_database()
+        portfolio_count = self.database_manager.execute_fetch(query='SELECT * FROM portfolios')
 
-        if chosen not in self.portfolios:
-            print('invalid selection!\n')
-            return  # leave function if user attempts to remove a non-existant portfolio
-
-        self.portfolios.remove(chosen)
-        os.remove(f'portfolios/{chosen}.csv')
-
-    def run_menu(self) -> NoReturn:
-        """Run the main menu method
-        """
-        if not self.portfolios:
+        if not portfolio_count:
+            print('Welcome to this somewhat shite portfolio tracker!')
             self.create_portfolio()  # force create at least one portfolio if there are none so far
 
         choose = input("what would you like to do?:"
@@ -116,10 +79,40 @@ class MainMenu:
         elif choose == '3':
             self.delete_portfolio()
         elif choose == '4':
+            self.database_manager.close()
             sys.exit(0)
         else:
             print('invalid selection!\n')
 
+    def create_portfolio(self) -> None:
+        """Create a portfolio in the portfolios table.
+        """
+        portfolio_name = input('What do you want to call your new portfolio?\n')
+        portfolio_description = input('Write a short description for your portfolio, or hit enter to skip\n')
+
+        query = f"""
+        INSERT INTO portfolios (id, name, description) VALUES (NULL, '{portfolio_name}', '{portfolio_description}')
+        """
+        self.database_manager.execute_commit(query=query)
+
+    def select_portfolio(self) -> None:
+        pass
+
+    def delete_portfolio(self) -> None:
+        """Delete the specified portfolio from the portfolios folder.
+        """
+        portfolios = self.database_manager.execute_fetch(query='SELECT DISTINCT id, name from portfolios')
+
+        print('Type the number of portfolio you\'d like to delete!'
+              f'{unpack_list_to_hyphened_string(portfolios)}\n')  # list all portfolios currently available
+        chosen = input()
+
+        if chosen not in [str(portfolio[0]) for portfolio in portfolios]:
+            print('invalid selection!\n')
+            return  # leave function if user attempts to remove a non-existant portfolio
+
+        self.database_manager.execute_commit(query=f'DELETE FROM portfolios WHERE id = {chosen}')
+        print(f'Successfully deleted portfolio {chosen}')
 
 if __name__ == '__main__':
     menu = MainMenu()
