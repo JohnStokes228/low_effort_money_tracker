@@ -16,8 +16,11 @@ from menu import Menu
 from support_funcs import unpack_list_to_hyphened_string
 
 
-class PortfolioMenu(Menu):
-    """Class governing the User interactions and inputs with the database.
+class PortfolioManager(Menu):
+    """Class governing the User interactions and inputs with the database. Inherits the menu navigation functions from
+    Menu in menu.py. MYSQLDataBase is instantiated a sa class attribute partially so it can be passed into other classes
+    which are created in the code and partially becasue i like the syntax that points to which functions are from the
+    SQL class, maybe this is poor practice though who knows.
     """
     def __init__(self):
         super().__init__()
@@ -32,10 +35,10 @@ class PortfolioMenu(Menu):
     def main(self) -> None:
         """Setup and run the system.
         """
-        options = [('create new portfolio', self.create_portfolio),
+        options = (('create new portfolio', self.create_portfolio),
                    ('edit an existing portfolio', self.edit_portfolio),
                    ('delete existing portfolio', self.delete_portfolio),
-                   ('exit system', self.database_manager.close)]
+                   ('exit system', self.database_manager.close))
 
         self.database_manager.get_connect_database()
         self.run_menu(message=f'Hello there {MYSQL_USER["user"]}!',
@@ -48,7 +51,7 @@ class PortfolioMenu(Menu):
         portfolio_count = self.database_manager.execute_fetch(query='SELECT * FROM portfolios')
 
         if not portfolio_count:
-            print('Welcome to this somewhat shite portfolio tracker!')
+            print('First, setup at least one empty portfolio!')
             self.create_portfolio()
 
     def create_portfolio(self) -> None:
@@ -65,7 +68,7 @@ class PortfolioMenu(Menu):
     def edit_portfolio(self) -> None:
         """Select a portfolio from the 'portfolios' table and then enter the edit menu for that portfolio.
         """
-        chosen = input('Which portfolio would you like to view or edit?'
+        chosen = input('Which portfolio would you like to edit?'
                        f'{unpack_list_to_hyphened_string(self.portfolios)}\n')
 
         if chosen not in [str(folio[0]) for folio in self.portfolios]:
@@ -78,9 +81,8 @@ class PortfolioMenu(Menu):
     def delete_portfolio(self) -> None:
         """Delete the specified portfolio from the portfolios folder.
         """
-        print('Type the number of portfolio you\'d like to delete!'
-              f'{unpack_list_to_hyphened_string(self.portfolios)}\n')
-        chosen = input()
+        chosen = input('Type the number of portfolio you\'d like to delete!'
+                       f'{unpack_list_to_hyphened_string(self.portfolios)}\n')
 
         if chosen not in [str(portfolio[0]) for portfolio in self.portfolios]:
             print('invalid selection!\n')
@@ -91,5 +93,5 @@ class PortfolioMenu(Menu):
 
 
 if __name__ == '__main__':
-    menu = PortfolioMenu()
+    menu = PortfolioManager()
     menu.main()

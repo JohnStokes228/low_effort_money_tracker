@@ -39,8 +39,9 @@ class Menu:
     def run_menu(
         self,
         options: List[Tuple[str, Callable]],
+        check_portfolios: bool=True,
         message: str='',
-        check_portfolios: bool=True) -> None:
+        ) -> None:
         """Runs the main menu until it doesn't anymore, at which point, it stops (if you can believe it :O).
 
         Notes
@@ -50,9 +51,9 @@ class Menu:
         Parameters
         ----------
         options : List of tuples containing the description of the method and the unexecuted function.
-        message : Message to print on start up.
         check_portfolios : passed to get_menu, used there to determine whether to query the existance of portfolios in
         the database.
+        message : Message to print on start up.
         """
         print(message)
 
@@ -61,14 +62,14 @@ class Menu:
 
     def get_menu(
         self,
-        options: List[Tuple[str, Callable]],
+        options: Tuple[Tuple[str, Callable]],
         check_portfolios: bool=True,
         ) -> bool:
         """Generates the main menu, to be ran in run_menu
 
         Parameters
         ----------
-        options : List of tuples containing the description of the method and the unexecuted function.
+        options : Tuple of tuples containing the description of the method and the unexecuted function.
         check_portfolios : passed to get_menu, used there to determine whether to query the existance of portfolios in
         the database.
 

@@ -22,7 +22,7 @@ CREATE TABLE `assets_held` (
     `portfolio_id` INT NOT NULL,
     `location` VARCHAR(50) NOT NULL,
     `ticker` VARCHAR(12),
-    `units` INT NOT NULL,
+    `units` DECIMAL(13, 6) NOT NULL,
     `date_purchased` DATE NOT NULL,
     FOREIGN KEY (`portfolio_id`) REFERENCES portfolios(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`ticker`) REFERENCES asset_info(`ticker`) ON DELETE CASCADE
