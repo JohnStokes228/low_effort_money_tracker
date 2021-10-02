@@ -2,8 +2,9 @@
 All core database interactivity functions come from here, or at least I'd have thought they would. whos to say at the
 end of the day. The class deffo works up till here though we've got ourselves a database bois :O
 """
-from typing import Any, List, Tuple
 import yaml
+import sys
+from typing import Any, List, Tuple
 from mysql.connector import connect
 from collections import deque
 from config.create_tables_sql import(
@@ -55,8 +56,7 @@ class MYSQLDataBase:
         ----------
         database_name : Name of database to create if needed and connect to once it exists.
         """
-        self.execute('SHOW DATABASES')
-        databases = [db[0] for db in self.cursor]
+        databases = [database[0] for database in self.execute_fetch('SHOW DATABASES')]
 
         if database_name in databases:
             self.execute(f'USE {database_name}')
@@ -71,29 +71,22 @@ class MYSQLDataBase:
     def close(
         self,
         commit: bool=True,
+        exit: bool=True,
     ) -> None:
         """Close connection to MYSQL database, commiting changes if requested.
 
         Parameters
         ----------
         commit : Set to True to commit any remaining queries before closing connection.
+        exit : Set to True to exit the thread after closing the connection.
         """
         if commit:
             self.commit()
+
         self.connection.close()
 
-    def execute_commit(
-        self,
-        query: str,
-    ) -> None:
-        """Execute and commit a given query in the connected database.
-
-        Parameters
-        ----------
-        query : String representation of desired query.
-        """
-        self.execute(query=query)
-        self.commit()
+        if exit:
+            sys.exit(0)
 
     def execute_fetch(
         self,
@@ -114,6 +107,19 @@ class MYSQLDataBase:
         output = self.cursor.fetchall()
 
         return output
+
+    def execute_commit(
+        self,
+        query: str,
+    ) -> None:
+        """Execute and commit a given query in the connected database.
+
+        Parameters
+        ----------
+        query : String representation of desired query.
+        """
+        self.execute(query=query)
+        self.commit()
 
     def execute(
         self,
