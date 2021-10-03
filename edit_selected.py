@@ -39,20 +39,21 @@ class EditSelected(Menu):
     def add_assets_from_file(self) -> None:
         """Choose an asset file to add to the portfolio defined by self.portfolio, then input the reqired rows.
         """
-        file = choose_file_from_directory(directory='assets')
+        files = choose_file_from_directory(directory='assets')
 
-        if not file:
+        if not files:
             return
 
-        df = pd.read_csv(file)
-        df = self.apply_assets_held_schema(df)
+        for file in files:
+            df = pd.read_csv(file)
+            df = self.apply_assets_held_schema(df)
 
-        if not df:
-            print(f'Invaid file structure in {file}, could not append contents to database!')
-            return
+            if df is None:
+                print(f'Invaid file structure in {file}, could not append contents to database!')
+                break
 
-        df.to_sql(name='assets_held', con=self.database_manager.connection, if_exists='append', index=False)
-        print(f'Successfully added the assets from {file} into portfolio {self.portfolio}!')
+            df.to_sql(name='assets_held', con=self.database_manager.engine, if_exists='append', index=False)
+            print(f'Successfully added the assets from {file} into portfolio {self.portfolio}!')
 
     def apply_assets_held_schema(
         self,
@@ -79,7 +80,7 @@ class EditSelected(Menu):
 
         df = df[['portfolio_id', 'location', 'ticker', 'units', 'date_purchased']]
 
-        df['date_purchased'] = pd.to_datetime(df['date_purchased'], format='%d/%m/%Y')  # big assumption here?
+        df.loc[:, 'date_purchased'] = pd.to_datetime(df['date_purchased'], format='%d/%m/%Y')  # big assumption here?
         df.dropna(subset=['location', 'units', 'date_purchased'], inplace=True)
 
         return df

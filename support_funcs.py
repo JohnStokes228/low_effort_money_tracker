@@ -4,10 +4,11 @@ Support functions to be called elsewhere in the code.
 import os
 from pathlib import Path
 from typing import List, Tuple, Any, Optional
+from functools import partial
 
 
-def choose_file_from_directory(directory: str) -> Optional[str]:
-    """Choose file in directory to get, or fail miserably. There is no try.
+def choose_file_from_directory(directory: str) -> Optional[List[str]]:
+    """Choose file / files in directory to get, or fail miserably. There is no try.
 
     Parameters
     ----------
@@ -15,25 +16,28 @@ def choose_file_from_directory(directory: str) -> Optional[str]:
 
     Returns
     -------
-    Optional[str]
-        Either the file path of the desired file, or None
+    Optional[List[str]]
+        Either a list of the file paths of the desired files, or None
     """
-    asset_files = [Path(file) for file in os.listdir(directory)]
+    asset_files = [Path(file).stem for file in os.listdir(directory)]
 
     if not asset_files:
         print('No files to select from!')
         return
 
-    chosen = input('Select a file to add to your portfolio!'
-                   f'{unpack_list_to_hyphened_string(list(enumerate(asset_files)))}')
+    chosen = input('Select a file to add to your portfolio, comma separate for multiple!'
+                   f'{unpack_list_to_hyphened_string(list(enumerate(asset_files)))}\n')
+    chosen = chosen.split(',')
 
-    file = get_element_by_string_index(input_string=chosen, input_list=asset_files)
+    files = list(map(partial(get_element_by_string_index, input_list=asset_files), chosen))
 
-    if not file:
+    if not files:
         print('Invalid selection!')
         return
 
-    return f'{directory}/{file}.csv'
+    files = [f'{directory}/{file}.csv' for file in files if file != None]
+
+    return files
 
 
 def unpack_list_to_hyphened_string(input_list: List[Tuple[str]]) -> str:

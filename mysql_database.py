@@ -2,8 +2,10 @@
 All core database interactivity functions come from here, or at least I'd have thought they would. whos to say at the
 end of the day. The class deffo works up till here though we've got ourselves a database bois :O
 """
+import pymysql
 import yaml
 import sys
+from sqlalchemy import create_engine
 from typing import Any, List, Tuple
 from mysql.connector import connect
 from collections import deque
@@ -26,13 +28,18 @@ class MYSQLDataBase:
     for the core attributes. Used to also contain a setter but removed it as I realised I didnt really have any use for
     it lol.
     """
-    def __init__(self):
+    def __init__(
+        self,
+        database_name: str='portfolio_database'
+    ):
+        self.database_name = database_name
         self._connection = connect(
                 host=MYSQL_USER['host'],
                 user=MYSQL_USER['user'],
                 password=MYSQL_USER['password'],
         )
         self._cursor = self._connection.cursor(buffered=True)
+        self._engine = None  # do we need the other two if we have an engine? need to learn how this works
 
     @property
     def connection(self):
@@ -46,27 +53,43 @@ class MYSQLDataBase:
         """
         return self._cursor
 
-    def get_connect_database(
+    @property
+    def engine(self):
+        """Get class engine attribute.
+        """
+        return self._engine
+
+    @engine.setter
+    def engine(
         self,
-        database_name: str='portfolio_database'
+        database_name: str,
     ) -> None:
-        """Either connects to the database with name database_name if it exists, or creates it from scratch if not.
+        """Set class engine attribute.
 
         Parameters
         ----------
-        database_name : Name of database to create if needed and connect to once it exists.
+        database_name : Name of database to get engine connection to.
+        """
+        self._engine = create_engine(
+            f'mysql+pymysql://{MYSQL_USER["user"]}:{MYSQL_USER["password"]}'
+            f'@{MYSQL_USER["host"]}:{MYSQL_USER["port"]}/{database_name}',
+            echo=False
+        )
+
+    def get_connect_database(
+        self,
+    ) -> None:
+        """Either connects to the database with name database_name if it exists, or creates it from scratch if not.
         """
         databases = [database[0] for database in self.execute_fetch('SHOW DATABASES')]
 
-        if database_name in databases:
-            self.execute(f'USE {database_name}')
-            print(f'Connected to the database "{database_name}"')
+        if self.database_name in databases:
+            self.connect_to_database()
             return
         
-        self.execute(f'CREATE DATABASE {database_name}')
-        self.execute(f'USE {database_name}')
+        self.connect_to_database()
         deque(map(self.execute, SQL_TABLES))  # deque() force executes the mapped function calls
-        print(f'Set up the database "{database_name}", and connected to it.')
+        print(f'Set up tables for the database "{self.database_name}".')
 
     def close(
         self,
@@ -121,6 +144,19 @@ class MYSQLDataBase:
         self.execute(query=query)
         self.commit()
 
+    def commit(self) -> None:
+        """Commit query to database.
+        """
+        self.connection.commit()
+
+    def connect_to_database(self) -> None:
+        """Connect to a given database, establish an engine for the class?
+        """
+        self.execute(f'USE {self.database_name}')
+        self.engine = self.database_name
+
+        print(f'Connected to the database "{self.database_name}"')
+
     def execute(
         self,
         query: str,
@@ -132,8 +168,3 @@ class MYSQLDataBase:
         query : String representation of desired query.
         """
         self.cursor.execute(query)
-
-    def commit(self) -> None:
-        """Commit query to database.
-        """
-        self.connection.commit()
