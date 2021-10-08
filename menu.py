@@ -94,4 +94,4 @@ class Menu:
             print('invalid selection!\n')
 
     def check_for_portfolios(self) -> None:
-        pass
+        pass  # to be overwritten by children

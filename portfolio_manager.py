@@ -18,13 +18,15 @@ from support_funcs import unpack_list_to_hyphened_string
 
 class PortfolioManager(Menu):
     """Class governing the User interactions and inputs with the database. Inherits the menu navigation functions from
-    Menu in menu.py. MYSQLDataBase is instantiated a sa class attribute partially so it can be passed into other classes
+    Menu in menu.py. MYSQLDataBase is instantiated as a class attribute partially so it can be passed into other classes
     which are created in the code and partially becasue i like the syntax that points to which functions are from the
     SQL class, maybe this is poor practice though who knows.
     """
-    def __init__(self):
+    def __init__(
+        self,
+        database_name: str='portfolio_database'):
         super().__init__()
-        self.database_manager = MYSQLDataBase()
+        self.database_manager = MYSQLDataBase(database_name=database_name)
 
     @property
     def portfolios(self) -> List[Tuple[int, str]]:

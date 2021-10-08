@@ -2,8 +2,10 @@
 Code for editing a given portfolio? maybe? how does this fit together? so dumb John! didnt think this through at all!
 """
 import pandas as pd
+from datetime import datetime
 from support_funcs import choose_file_from_directory
 from mysql_database import MYSQLDataBase
+from prices_api import PricesAPI
 from menu import Menu
 
 
@@ -18,6 +20,7 @@ class EditSelected(Menu):
     ):
         super().__init__()
         self.database_manager = database_manager
+        self.api_interacter = PricesAPI(portfolio=portfolio)
         self._portfolio = portfolio
 
     @property
@@ -30,8 +33,7 @@ class EditSelected(Menu):
         """Make a decision about what to do to your poor portfolio.
         """
         options = (('add new holdings from file', self.add_assets_from_file),
-                   ('add new holdings by hand', self.add_assets_by_input),
-                   ('remove assets from portfolio', self.remove_assets))
+                   ('add or remove individual assets by hand', self.edit_assets_by_input))
         self.run_menu(options=options,
                       message=f'Now editing portfolio with ID {self.portfolio}',
                       check_portfolios=False)
@@ -46,14 +48,57 @@ class EditSelected(Menu):
 
         for file in files:
             df = pd.read_csv(file)
-            df = self.apply_assets_held_schema(df)
+            self.append_df_to_assets_held_table(df=df, location=file)
 
-            if df is None:
-                print(f'Invaid file structure in {file}, could not append contents to database!')
-                break
+    def edit_assets_by_input(self) -> None:
+        """Add or remove assets based off user input.
 
-            df.to_sql(name='assets_held', con=self.database_manager.engine, if_exists='append', index=False)
-            print(f'Successfully added the assets from {file} into portfolio {self.portfolio}!')
+        Notes
+        -----
+        probs be mad tedious but could be worse ey ;).
+        """
+        choices = dict()
+
+        choices['ticker'] = input('Whats the assets ticker? (maximum 12 characters, hit enter if adding liquid)')
+
+        try:
+            choices['units'] = float(
+                input(f'How many units of asset {choices["ticker"]} would you like to add or remove?')
+            )
+        except ValueError:
+            print('Invalid quantity input!')
+            return
+
+        choices['location'] = input(f'Where are you storing {choices["units"]} units of {choices["ticker"]}?')
+
+        choices['date_purchased'] = input(f'When did this transaction occur? (dd/mm/yyyy, hit enter for "today")')
+        if not choices['date_purchased']:
+            choices['date_purchased'] = datetime.today().strftime('%d/%m/%Y')
+
+        df = pd.DataFrame([choices], columns=choices.keys())
+        self.append_df_to_assets_held_table(df=df, location='user input')
+
+    def append_df_to_assets_held_table(
+        self,
+        df: pd.DataFrame,
+        location: str,
+    ) -> None:
+        """Update the assets_held table with the data stored in df.
+
+        Parameters
+        ----------
+        df : dataframe with 'portfolio_id', 'ticker', 'units', 'location' and 'date_purchased' columns.
+        location : where did this add request come from lad?
+        """
+        df = self.apply_assets_held_schema(df)
+
+        if df is None:
+            print(f'Invaid file structure in {location}, could not append contents to database!')
+            return
+
+        df.to_sql(name='assets_held', con=self.database_manager.engine, if_exists='append', index=False)
+        self.api_interacter.get_asset_price()  # preemptive function call, need to write this method Johnno :O
+        print(f'Successfully added the assets from {location} into portfolio {self.portfolio}!')
 
     def apply_assets_held_schema(
         self,
@@ -80,13 +125,12 @@ class EditSelected(Menu):
 
         df = df[['portfolio_id', 'location', 'ticker', 'units', 'date_purchased']]
 
-        df.loc[:, 'date_purchased'] = pd.to_datetime(df['date_purchased'], format='%d/%m/%Y')  # big assumption here?
+        try:
+            df.loc[:, 'date_purchased'] = pd.to_datetime(df['date_purchased'], format='%d/%m/%Y')  # big assumption here?
+        except ValueError:
+            print('Invalid date format, please use dd/mm/yyyy and try again!')
+            return
+
         df.dropna(subset=['location', 'units', 'date_purchased'], inplace=True)
 
         return df
-
-    def add_assets_by_input(self):
-        pass
-
-    def remove_assets(self):
-        pass

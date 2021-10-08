@@ -3,7 +3,7 @@ Support functions to be called elsewhere in the code.
 """
 import os
 from pathlib import Path
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple, Any, Optional, Dict
 from functools import partial
 
 
@@ -76,6 +76,7 @@ def get_element_by_string_index(
     ----------
     input_string : String to represent list index desired.
     input_list : List to get element from.
+
     Returns
     -------
     Optional[Any]

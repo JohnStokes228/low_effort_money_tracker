@@ -5,7 +5,7 @@ end of the day. The class deffo works up till here though we've got ourselves a 
 import pymysql
 import yaml
 import sys
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine  # think we should swap fully to this?
 from typing import Any, List, Tuple
 from mysql.connector import connect
 from collections import deque
@@ -32,7 +32,7 @@ class MYSQLDataBase:
         self,
         database_name: str='portfolio_database'
     ):
-        self.database_name = database_name
+        self._database_name = database_name
         self._connection = connect(
                 host=MYSQL_USER['host'],
                 user=MYSQL_USER['user'],
@@ -42,11 +42,17 @@ class MYSQLDataBase:
         self._engine = None  # do we need the other two if we have an engine? need to learn how this works
 
     @property
+    def database_name(self):
+        """Get class database_name attribute.
+        """
+        return self._database_name
+
+    @property
     def connection(self):
         """Get class connection attribute.
         """
         return self._connection
-    
+
     @property
     def cursor(self):
         """Get class cursor attribute.
@@ -91,26 +97,6 @@ class MYSQLDataBase:
         deque(map(self.execute, SQL_TABLES))  # deque() force executes the mapped function calls
         print(f'Set up tables for the database "{self.database_name}".')
 
-    def close(
-        self,
-        commit: bool=True,
-        exit: bool=True,
-    ) -> None:
-        """Close connection to MYSQL database, commiting changes if requested.
-
-        Parameters
-        ----------
-        commit : Set to True to commit any remaining queries before closing connection.
-        exit : Set to True to exit the thread after closing the connection.
-        """
-        if commit:
-            self.commit()
-
-        self.connection.close()
-
-        if exit:
-            sys.exit(0)
-
     def execute_fetch(
         self,
         query: str,
@@ -131,6 +117,14 @@ class MYSQLDataBase:
 
         return output
 
+    def connect_to_database(self) -> None:
+        """Connect to a given database, establish an engine for the class?
+        """
+        self.execute(f'USE {self.database_name}')
+        self.engine = self.database_name
+
+        print(f'Connected to the database "{self.database_name}"')
+
     def execute_commit(
         self,
         query: str,
@@ -144,18 +138,25 @@ class MYSQLDataBase:
         self.execute(query=query)
         self.commit()
 
-    def commit(self) -> None:
-        """Commit query to database.
-        """
-        self.connection.commit()
+    def close(
+        self,
+        commit: bool=True,
+        exit: bool=True,
+    ) -> None:
+        """Close connection to MYSQL database, commiting changes if requested.
 
-    def connect_to_database(self) -> None:
-        """Connect to a given database, establish an engine for the class?
+        Parameters
+        ----------
+        commit : Set to True to commit any remaining queries before closing connection.
+        exit : Set to True to exit the thread after closing the connection.
         """
-        self.execute(f'USE {self.database_name}')
-        self.engine = self.database_name
+        if commit:
+            self.commit()
 
-        print(f'Connected to the database "{self.database_name}"')
+        self.connection.close()
+
+        if exit:
+            sys.exit(0)
 
     def execute(
         self,
@@ -168,3 +169,8 @@ class MYSQLDataBase:
         query : String representation of desired query.
         """
         self.cursor.execute(query)
+
+    def commit(self) -> None:
+        """Commit query to database.
+        """
+        self.connection.commit()
