@@ -5,7 +5,6 @@ import pandas as pd
 from datetime import datetime
 from support_funcs import choose_file_from_directory
 from mysql_database import MYSQLDataBase
-from prices_api import PricesAPI
 from menu import Menu
 
 
@@ -20,7 +19,6 @@ class EditSelected(Menu):
     ):
         super().__init__()
         self.database_manager = database_manager
-        self.api_interacter = PricesAPI(portfolio=portfolio)
         self._portfolio = portfolio
 
     @property
@@ -97,7 +95,6 @@ class EditSelected(Menu):
             return
 
         df.to_sql(name='assets_held', con=self.database_manager.engine, if_exists='append', index=False)
-        self.api_interacter.get_asset_price()  # preemptive function call, need to write this method Johnno :O
         print(f'Successfully added the assets from {location} into portfolio {self.portfolio}!')
 
     def apply_assets_held_schema(

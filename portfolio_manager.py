@@ -11,6 +11,7 @@ TODO: - decide what to do about the edit portfolio method
 """
 from typing import List, Tuple
 from mysql_database import MYSQLDataBase, MYSQL_USER
+from prices_api import PricesAPI
 from edit_selected import EditSelected
 from menu import Menu
 from support_funcs import unpack_list_to_hyphened_string
@@ -24,7 +25,8 @@ class PortfolioManager(Menu):
     """
     def __init__(
         self,
-        database_name: str='portfolio_database'):
+        database_name: str='portfolio_database'
+    ):
         super().__init__()
         self.database_manager = MYSQLDataBase(database_name=database_name)
 
@@ -40,6 +42,7 @@ class PortfolioManager(Menu):
         options = (('create new portfolio', self.create_portfolio),
                    ('edit an existing portfolio', self.edit_portfolio),
                    ('delete existing portfolio', self.delete_portfolio),
+                   ('view or compare portfolios', self.view_portfolio),
                    ('exit system', self.database_manager.close))
 
         self.database_manager.get_connect_database()
@@ -92,6 +95,12 @@ class PortfolioManager(Menu):
 
         self.database_manager.execute_commit(query=f'DELETE FROM portfolios WHERE id = {chosen}')
         print(f'Successfully deleted portfolio {chosen}')
+
+    def view_portfolio(self) -> None:
+        api_interacter = PricesAPI(database_manager=self.database_manager)
+        api_interacter.update_asset_historic_prices()
+
+        print('pizza time!')  # this is where the dashboard would get called, if there was one!!!!
 
 
 if __name__ == '__main__':
