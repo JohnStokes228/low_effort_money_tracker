@@ -3,6 +3,8 @@ Price API interactivity for the bloody system mate. will allow you to get the pr
 all your assets - except the bank ones i guess?
 
 pdr.DataReader('LTC-USD', 'yahoo', start_date, end_date)  <- pulls the price of ltc-usd pair
+
+if you always need todays data at least maybe theres something to be done here with regards to today vs previous max?
 """
 #import pandas_datareader as pdr
 import pandas as pd
@@ -22,48 +24,77 @@ class PricesAPI:
         database_manager: MYSQLDataBase,
     ):
         self.database_manager = database_manager
-        self.end_date = datetime.today()
+        self.end_date = datetime.today().date()
 
     def update_asset_historic_prices(self):
+        """Updates the prices table based on what assets are currently held and for how long.
+        """
         query = f"""
         SELECT ticker, MIN(date_purchased)
         FROM assets_held
         GROUP BY ticker
         """
         asset_startdates = self.database_manager.execute_fetch(query)
+        asset_startdates = [(*asset, self.end_date) for asset in asset_startdates]  # append date today to each result
+
         missing_dates = self.check_asset_timeseries(asset_startdates=asset_startdates)
-
         asset_prices = [self.get_price_from_api(asset=asset) for asset in missing_dates]
-        df = pd.concat(asset_prices)
 
+        if not asset_prices:
+            return
+
+        df = pd.concat(asset_prices)
         df.to_sql(name='prices', con=self.database_manager.engine, if_exists='append', index=False)
         self.remove_unheld_assets()
 
     def check_asset_timeseries(
         self,
-        asset_startdates: Tuple[str, datetime.datetime],
-    ) -> List[datetime.datetime]:
-        """This one will look for what of the time series is covered by the existing data. 
-        is it better to make n queries or to make one query then iterate through the results...?
+        asset_startdates: List[Tuple[str, datetime, datetime]],
+    ) -> List[Tuple[str, datetime, datetime]]:
+        """Find the ticker names, and start and end dates of periods of missing price data in the 'prices' table.
+
+        Parameters
+        ----------
+        asset_startdates : Results of a query to the assets_held table containing each ticker and the date it was first
+        held by any protfolios in the portfolios table.
+
+        Returns
+        -------
+        List[Tuple[str, datetime.datetime, datetime.datetime]]
+            List of asset tickers, satrt and end dates for assets which we need new price data for.
         """
         query = """
-        SELECT ticker, MIN(date)
+        SELECT ticker, MIN(date), MAX(date)
         FROM prices
         GROUP BY ticker
         """
-        existing_timeseries = self.database_manager.execute_fetch(query=query)
-        new_timeseries = []
-        # get the asset, min date pairs which arent in prices but are in holdings
-        # if the asset exists with a different min date then check which the earliest is and take that
-        # return list of asset / min date combos including entirely issing assets and assets with new min dates.
+        existing_timeseries = self.database_manager.execute_fetch(query=query)  # prices table
+        new_timeseries = [asset for asset in asset_startdates if asset not in existing_timeseries]  # ignore unchanged
 
-        return new_timeseries
+        new_assets = [asset for asset in asset_startdates if asset[0] in [asset for asset, *_ in new_timeseries]]
+        updated_assets = [asset for asset in asset_startdates if asset not in new_assets]
+
+        if updated_assets:
+            for asset in updated_assets:
+                og_asset = next((i for i, v in enumerate(existing_timeseries) if v[0] == asset[0]), None)
+                og_asset = existing_timeseries[og_asset]  # get the existing data for the ticker which has been updated
+
+                if og_asset[1] > asset[1]:  # if we have a new start date
+                    new_assets.append((asset[0], asset[1], og_asset[1]))
+
+                if og_asset[2] < asset[2]:  # if we have a new end date
+                    new_assets.append((asset[0], og_asset[2], asset[2]))
+
+        return new_assets
 
     def get_price_from_api(
         self,
-        asset: str,
+        asset: List[Tuple[str, datetime, datetime]],
     ) -> pd.DataFrame:
-        """Probably what it'll be is it'll look for the price of the asset via the missing dates
+        """Probably what it'll be is it'll look for the price of the asset via the missing dates.
+        Do I need to have some method of addressing the difference between crypto assets, S&S, funds, bonds, etc...?
+        I'll need to play with the api and see i think. This could require a bunch of edge cases. It may also require
+        the user to sepcify the type of asset in the assets held database which would be somewhat annoying...
         """
         pass
 
