@@ -2,13 +2,13 @@
 Price API interactivity for the bloody system mate. will allow you to get the price timeseries via some kind of API for
 all your assets - except the bank ones i guess?
 
-pdr.DataReader('LTC-USD', 'yahoo', start_date, end_date)  <- pulls the price of ltc-usd pair
-
-if you always need todays data at least maybe theres something to be done here with regards to today vs previous max?
+TODO: - test lol
+      - build edge case of some sort for money stored out the market?
+      - build edge case for niche shitcoins if we intend to continue our degenerate lifestyle into the future?
 """
-#import pandas_datareader as pdr
+import pandas_datareader as pdr
 import pandas as pd
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from datetime import datetime
 from mysql_database import MYSQLDataBase
 
@@ -29,7 +29,7 @@ class PricesAPI:
     def update_asset_historic_prices(self):
         """Updates the prices table based on what assets are currently held and for how long.
         """
-        query = f"""
+        query = """
         SELECT ticker, MIN(date_purchased)
         FROM assets_held
         GROUP BY ticker
@@ -61,7 +61,7 @@ class PricesAPI:
         Returns
         -------
         List[Tuple[str, datetime.datetime, datetime.datetime]]
-            List of asset tickers, satrt and end dates for assets which we need new price data for.
+            List of asset tickers, start and end dates for assets which we need new price data for.
         """
         query = """
         SELECT ticker, MIN(date), MAX(date)
@@ -90,13 +90,37 @@ class PricesAPI:
     def get_price_from_api(
         self,
         asset: List[Tuple[str, datetime, datetime]],
-    ) -> pd.DataFrame:
-        """Probably what it'll be is it'll look for the price of the asset via the missing dates.
-        Do I need to have some method of addressing the difference between crypto assets, S&S, funds, bonds, etc...?
-        I'll need to play with the api and see i think. This could require a bunch of edge cases. It may also require
-        the user to sepcify the type of asset in the assets held database which would be somewhat annoying...
+    ) -> Optional[pd.DataFrame]:
+        """Call aset value in GBP terms from yahoo finance.
+
+        Notes
+        -----
+        No idea how well this will work for shitcoins or low caps. Also have to imagine some tickers may overlap? we'll
+        see how it goes - im sure for a rudimentary project like this one itll do seriously doubt its viability for
+        professional purposes...
+
+        Parameters
+        ----------
+        asset : List of asset tickers, start and end dates for assets which we need new price data for.
+
+        Returns
+        -------
+        pd.DataFrame
+            Probably a dataframe of name, ticker, prices, etc... tbh its all up in the air
         """
-        pass
+        asset_df = pdr.DataReader(f'{asset[0]}-GBP', 'yahoo', asset[1], asset[2])  # might be better way of doing this
+
+        if not asset_df:
+            return  # if not such pairing exists cancel the rest I guess...?
+
+        asset_df.reset_index(inplace=True)
+
+        asset_df['price'] = asset_df[['High', 'Low']].mean(axis=1).round(decimals=2)
+        asset_df['ticker'] = asset[0]
+        asset_df.rename(columns={'Date': 'date'}, inplace=True)
+        asset_df = asset_df[['ticker', 'price', 'date']]
+
+        return asset_df
 
     def remove_unheld_assets(self) -> None:
         """Remove price data for assets that are no longer held by any portfolio, to clear up memory.
