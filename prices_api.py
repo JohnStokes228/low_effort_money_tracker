@@ -108,27 +108,30 @@ class PricesAPI:
         pd.DataFrame
             Probably a dataframe of name, ticker, prices, etc... tbh its all up in the air
         """
-        asset_df = pdr.DataReader(f'{asset[0]}-GBP', 'yahoo', asset[1], asset[2])  # might be better way of doing this
+        try:
+            asset_df = pdr.DataReader(f'{asset[0]}-USD', 'yahoo', asset[1], asset[2])
+        except pdr._utils.RemoteDataError:
+            asset_df = pdr.DataReader(asset[0], 'yahoo', asset[1], asset[2])
+        finally:
+            if asset_df.shape[0] == 0:
+                return  # if not such pairing exists cancel the rest I guess...?
 
-        if not asset_df:
-            return  # if not such pairing exists cancel the rest I guess...?
+            asset_df.reset_index(inplace=True)
 
-        asset_df.reset_index(inplace=True)
+            asset_df['price'] = asset_df[['High', 'Low']].mean(axis=1).round(decimals=2)
+            asset_df['ticker'] = asset[0]
+            asset_df.rename(columns={'Date': 'date'}, inplace=True)
+            asset_df = asset_df[['ticker', 'price', 'date']]
 
-        asset_df['price'] = asset_df[['High', 'Low']].mean(axis=1).round(decimals=2)
-        asset_df['ticker'] = asset[0]
-        asset_df.rename(columns={'Date': 'date'}, inplace=True)
-        asset_df = asset_df[['ticker', 'price', 'date']]
-
-        return asset_df
+            return asset_df
 
     def remove_unheld_assets(self) -> None:
         """Remove price data for assets that are no longer held by any portfolio, to clear up memory.
         """
-        query1 = "SELECT UNIQUE(ticker) FROM assets_held"
+        query1 = "SELECT DISTINCT(ticker) FROM assets_held"
         assets_held = self.database_manager.execute_fetch(query=query1)
 
-        query2 = "SELECT UNIQUE(ticker) FROM prices"
+        query2 = "SELECT DISTINCT(ticker) FROM prices"
         prices_held = self.database_manager.execute_fetch(query=query2)
 
         tickers_to_drop = tuple(ticker for ticker in prices_held if ticker not in assets_held)

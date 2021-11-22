@@ -19,7 +19,7 @@ from config.create_tables_sql import(
 
 with open('config/mysql_user_config.yaml') as f:
     MYSQL_USER = yaml.safe_load(f)
-SQL_TABLES = [portfolios, asset_info, assets_held, prices]
+SQL_TABLES = [portfolios, assets_held, asset_info, prices]
 
 class MYSQLDataBase:
     """Class which handles all MYSQL interactivity for the project.
@@ -92,7 +92,8 @@ class MYSQLDataBase:
         if self.database_name in databases:
             self.connect_to_database()
             return
-        
+
+        self.execute(f'CREATE DATABASE {self.database_name}')
         self.connect_to_database()
         deque(map(self.execute, SQL_TABLES))  # deque() force executes the mapped function calls
         print(f'Set up tables for the database "{self.database_name}".')

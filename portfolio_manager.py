@@ -3,11 +3,8 @@ Main script for this most low effort of money trackers. Its possible this may be
 suggestions including:
       - wrap into an app?
       - historic portfolio viewing?
-      - a print 'pizza time' method?
+      - a print 'pizza time' method?  <- big ask but we might be able to stretch to it
       - asset allocation for the portfolios?
-
-TODO: - decide what to do about the edit portfolio method
-      - maybe the 'view' portfolio method should be its own thing like as a dashboard or something?
 """
 from typing import List, Tuple
 from mysql_database import MYSQLDataBase, MYSQL_USER
@@ -97,6 +94,8 @@ class PortfolioManager(Menu):
         print(f'Successfully deleted portfolio {chosen}')
 
     def view_portfolio(self) -> None:
+        """Update price data and then open portfolio dashboard.
+        """
         api_interacter = PricesAPI(database_manager=self.database_manager)
         api_interacter.update_asset_historic_prices()
 
